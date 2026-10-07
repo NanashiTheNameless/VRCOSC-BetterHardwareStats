@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Module version. Release tags must match this value. -->
+    <Version>0.0.1</Version>
+    <Authors>NamelessNanashi</Authors>
+  </PropertyGroup>
+</Project>

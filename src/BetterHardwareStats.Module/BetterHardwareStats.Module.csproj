@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <WindowsSdkPackageVersion>10.0.26100.56</WindowsSdkPackageVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>BetterHardwareStats.Module</RootNamespace>
+    <AssemblyTitle>Nanashi's Better Hardware Stats Module</AssemblyTitle>
+    <Title>Nanashi's Better Hardware Stats Module</Title>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BetterHardwareStats.Core\BetterHardwareStats.Core.csproj" />
+    <ProjectReference Include="..\BetterHardwareStats.Windows\BetterHardwareStats.Windows.csproj" />
+    <!-- Use the bundled sensor library at runtime. -->
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" NoWarn="NU1605" />
+    <!-- VRCOSC supplies the SDK and its dependencies. -->
+    <PackageReference Include="VolcanicArts.VRCOSC.SDK" Version="2026.501.0" ExcludeAssets="runtime;contentFiles" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- Install managed module assemblies at the root and sensors in their private folder. -->
+  <Target Name="DeployLocal" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT' And '$(Configuration)' == 'Debug'">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\DeployLocal.ps1&quot; -BuildDirectory &quot;$(TargetDir).&quot;" />
+  </Target>
+  <Import Project="../../tools/LhmBundle.targets" />
+</Project>

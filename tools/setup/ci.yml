@@ -1,0 +1,29 @@
+# Cross-platform checks. Forgejo Actions also reads .github/workflows when .forgejo/workflows does not exist.
+name: ci
+on:
+  push:
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Build (Windows projects build against reference assemblies)
+        run: dotnet build BetterHardwareStats.sln -c Release
+      - name: Core tests
+        run: dotnet test --project tests/BetterHardwareStats.Core.Tests -c Release
+      - name: Generated parameter table is up to date
+        run: python3 tools/gen-params/gen_params.py --check
+      - name: ASCII only
+        run: |
+          if grep -rnP "[^\x00-\x7F]" src tests tools README.md LICENSE THIRD-PARTY-NOTICES.md --exclude-dir=bin --exclude-dir=obj; then
+            echo "Non-ASCII characters found"; exit 1
+          fi

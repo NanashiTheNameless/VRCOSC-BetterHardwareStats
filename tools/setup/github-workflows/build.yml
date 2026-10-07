@@ -1,0 +1,92 @@
+# Build, test and publish releases.
+# Add the vrcosc-package topic to the public repository for VRCOSC discovery.
+name: build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  # Keep the package list small by retaining only this many nightly releases.
+  KEEP_NIGHTLY_RELEASES: '4'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Build (Windows projects build against reference assemblies)
+        run: dotnet build BetterHardwareStats.sln -c Release
+      - name: Core tests
+        run: dotnet test --project tests/BetterHardwareStats.Core.Tests -c Release --no-build
+      - name: Generated parameter table is up to date
+        run: python3 tools/gen-params/gen_params.py --check
+      - name: ASCII only
+        run: |
+          if grep -rnP "[^\x00-\x7F]" src tests tools .github README.md LICENSE THIRD-PARTY-NOTICES.md --exclude-dir=bin --exclude-dir=obj; then
+            echo "Non-ASCII characters found"; exit 1
+          fi
+
+  release:
+    needs: test
+    # Publish releases only from the public repository.
+    if: >-
+      github.repository == 'NanashiTheNameless/VRCOSC-BetterHardwareStats' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags are needed to compute the nightly version
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Version
+        id: version
+        run: bash tools/release/version.sh | tee -a "$GITHUB_OUTPUT"
+      - name: Package
+        id: package
+        run: bash tools/release/package.sh "${{ steps.version.outputs.version }}" | tee -a "$GITHUB_OUTPUT"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NIGHTLY: ${{ steps.version.outputs.nightly }}
+          SHA7: ${{ steps.version.outputs.sha7 }}
+          ZIP: ${{ steps.package.outputs.zip }}
+          CHECKSUM: ${{ steps.package.outputs.sha }}
+        run: bash tools/release/publish.sh
+      - name: Prune old nightly builds
+        if: steps.version.outputs.nightly == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 1000 --json tagName,createdAt \
+            --jq '(env.KEEP_NIGHTLY_RELEASES | tonumber) as $keep | [.[] | select(.tagName | test("-nightly\\."))] | sort_by(.createdAt) | reverse | .[$keep:] | .[].tagName' \
+          | while read -r tag; do
+              echo "Deleting $tag"
+              gh release delete "$tag" --cleanup-tag --yes
+            done

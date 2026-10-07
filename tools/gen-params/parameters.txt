@@ -1,0 +1,82 @@
+# Parameter definitions for tools/gen-params/gen_params.py.
+# Columns separated by |:  Lookup | Path (after VRCOSC/Hardware/) | Type | Parity | Display name | Description
+# Type: bool, int, float. Parity: yes for the 14 official parameters, else no.
+# A line starting with "@slots N" repeats the following block (until "@end") for slot 0..N-1; {N} is the slot number.
+# Enum member names and ordering identify saved VRCOSC parameter lookups.
+
+# GPU, selected group
+GpuUsage | GPU/Usage | float | yes | GPU Usage | Selected GPU utilization 0..1 (Task Manager definition by default)
+GpuPower | GPU/Power | int | yes | GPU Power | Selected GPU power in watts, clamped 0..255
+GpuTemp | GPU/Temp | int | yes | GPU Temp | Selected GPU temperature in degrees C, clamped 0..255
+GpuUsagePercent | GPU/UsagePercent | int | no | GPU Usage Percent | Selected GPU utilization 0..100
+GpuTempNormalized | GPU/TempNormalized | float | no | GPU Temp Normalized | Selected GPU temperature divided by MaxGpuTempC, 0..1
+GpuPowerNormalized | GPU/PowerNormalized | float | no | GPU Power Normalized | Selected GPU power divided by MaxGpuPowerW, 0..1
+GpuCoreClock | GPU/CoreClock | float | no | GPU Core Clock | Selected GPU core clock divided by MaxGpuClockMhz, 0..1
+GpuMemoryClock | GPU/MemoryClock | float | no | GPU Memory Clock | Selected GPU memory clock divided by MaxGpuClockMhz, 0..1
+GpuFan | GPU/Fan | float | no | GPU Fan | Selected GPU fan speed 0..1
+GpuPresent | GPU/Present | bool | no | GPU Present | True while the selected GPU exists and has fresh data
+GpuIsIntegrated | GPU/IsIntegrated | bool | no | GPU Is Integrated | True if the selected GPU is integrated
+GpuIsDiscrete | GPU/IsDiscrete | bool | no | GPU Is Discrete | True if the selected GPU is discrete
+GpuIndex | GPU/Index | int | no | GPU Index | Slot index (0..3) of the selected GPU, 255 if it has no slot
+
+# VRAM of the selected GPU (5)
+VramUsage | VRAM/Usage | float | yes | VRAM Usage | Selected GPU memory used / total, 0..1 (shared system memory on integrated GPUs)
+VramTotal | VRAM/Total | int | yes | VRAM Total | Selected GPU memory total in GiB, clamped 0..255
+VramUsed | VRAM/Used | int | yes | VRAM Used | Selected GPU memory used in GiB, clamped 0..255
+VramFree | VRAM/Free | int | yes | VRAM Free | Selected GPU memory free in GiB, clamped 0..255
+VramUsagePercent | VRAM/UsagePercent | int | no | VRAM Usage Percent | Selected GPU memory used 0..100
+
+# GPU slots (8 each)
+@slots 4
+Gpu{N}Present | GPU/{N}/Present | bool | no | GPU {N} Present | True while the GPU in slot {N} exists and has fresh data
+Gpu{N}Usage | GPU/{N}/Usage | float | no | GPU {N} Usage | Slot {N} GPU utilization 0..1
+Gpu{N}UsagePercent | GPU/{N}/UsagePercent | int | no | GPU {N} Usage Percent | Slot {N} GPU utilization 0..100
+Gpu{N}Temp | GPU/{N}/Temp | int | no | GPU {N} Temp | Slot {N} GPU temperature in degrees C, clamped 0..255
+Gpu{N}Power | GPU/{N}/Power | int | no | GPU {N} Power | Slot {N} GPU power in watts, clamped 0..255
+Gpu{N}IsIntegrated | GPU/{N}/IsIntegrated | bool | no | GPU {N} Is Integrated | True if the slot {N} GPU is integrated
+Gpu{N}VramUsage | GPU/{N}/VRAMUsage | float | no | GPU {N} VRAM Usage | Slot {N} GPU memory used / total, 0..1
+Gpu{N}VramPercent | GPU/{N}/VRAMPercent | int | no | GPU {N} VRAM Percent | Slot {N} GPU memory used 0..100
+@end
+
+# CPU (9)
+CpuUsage | CPU/Usage | float | yes | CPU Usage | Selected CPU utilization 0..1
+CpuPower | CPU/Power | int | yes | CPU Power | Selected CPU package power in watts, clamped 0..255 (needs CpuSensorMode)
+CpuTemp | CPU/Temp | int | yes | CPU Temp | Selected CPU temperature in degrees C, clamped 0..255 (needs CpuSensorMode)
+CpuUsagePercent | CPU/UsagePercent | int | no | CPU Usage Percent | Selected CPU utilization 0..100
+CpuTempNormalized | CPU/TempNormalized | float | no | CPU Temp Normalized | CPU temperature divided by MaxCpuTempC, 0..1
+CpuPowerNormalized | CPU/PowerNormalized | float | no | CPU Power Normalized | CPU power divided by MaxCpuPowerW, 0..1
+CpuFrequency | CPU/Frequency | float | no | CPU Frequency | CPU frequency divided by MaxCpuClockMhz, 0..1
+CpuPresent | CPU/Present | bool | no | CPU Present | True while CPU usage data is fresh
+CpuSensorsPresent | CPU/SensorsPresent | bool | no | CPU Sensors Present | True while CPU power and temperature are valid
+
+# RAM (5)
+RamUsage | RAM/Usage | float | yes | RAM Usage | Physical memory used / total, 0..1
+RamTotal | RAM/Total | int | yes | RAM Total | Physical memory total in GiB, clamped 0..255
+RamUsed | RAM/Used | int | yes | RAM Used | Physical memory used in GiB, clamped 0..255
+RamFree | RAM/Free | int | yes | RAM Free | Physical memory available in GiB, clamped 0..255
+RamUsagePercent | RAM/UsagePercent | int | no | RAM Usage Percent | Physical memory used 0..100
+
+# Disk aggregate (7)
+DiskPresent | Disk/Present | bool | no | Disk Present | True while disk counters are available
+DiskActivity | Disk/Activity | float | no | Disk Activity | Busiest physical disk active time 0..1
+DiskActivityPercent | Disk/ActivityPercent | int | no | Disk Activity Percent | Busiest physical disk active time 0..100
+DiskRead | Disk/Read | float | no | Disk Read | Total read throughput divided by MaxDiskMBps, 0..1
+DiskWrite | Disk/Write | float | no | Disk Write | Total write throughput divided by MaxDiskMBps, 0..1
+DiskReadMBps | Disk/ReadMBps | int | no | Disk Read MBps | Total read throughput in MB/s, clamped 0..255
+DiskWriteMBps | Disk/WriteMBps | int | no | Disk Write MBps | Total write throughput in MB/s, clamped 0..255
+
+# Disk volume slots (5 each)
+@slots 4
+Disk{N}Present | Disk/{N}/Present | bool | no | Disk {N} Present | True while volume slot {N} is mounted and readable
+Disk{N}UsedFraction | Disk/{N}/UsedFraction | float | no | Disk {N} Used Fraction | Volume slot {N} space used / capacity, 0..1
+Disk{N}UsedPercent | Disk/{N}/UsedPercent | int | no | Disk {N} Used Percent | Volume slot {N} space used 0..100
+Disk{N}Activity | Disk/{N}/Activity | float | no | Disk {N} Activity | Active time 0..1 of the physical disk holding volume slot {N}
+Disk{N}ActivityPercent | Disk/{N}/ActivityPercent | int | no | Disk {N} Activity Percent | Active time 0..100 of the physical disk holding volume slot {N}
+@end
+
+# Network (5)
+NetworkPresent | Network/Present | bool | no | Network Present | True while the selected adapter is up and has a valid rate
+NetworkDownload | Network/Download | float | no | Network Download | Download rate divided by link capacity, 0..1
+NetworkUpload | Network/Upload | float | no | Network Upload | Upload rate divided by link capacity, 0..1
+NetworkDownloadMbps | Network/DownloadMbps | int | no | Network Download Mbps | Download rate in Mbit/s, clamped 0..255
+NetworkUploadMbps | Network/UploadMbps | int | no | Network Upload Mbps | Upload rate in Mbit/s, clamped 0..255

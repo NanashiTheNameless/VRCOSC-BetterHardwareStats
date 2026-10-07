@@ -1,0 +1,42 @@
+{
+  // Click-only runnable tasks (Terminal > Run Task). Each writes its output to logs\.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "HWM: verify (build, tests, probe)",
+      "type": "process",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "tools\\verify.cmd", "all"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "NOPAUSE": "1" } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "HWM: build",
+      "type": "process",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "tools\\verify.cmd", "build"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "NOPAUSE": "1" } },
+      "problemMatcher": ["$msCompile"],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "HWM: tests",
+      "type": "process",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "tools\\verify.cmd", "test"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "NOPAUSE": "1" } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "HWM: probe (20 s)",
+      "type": "process",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "tools\\verify.cmd", "probe"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "NOPAUSE": "1" } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    }
+  ]
+}

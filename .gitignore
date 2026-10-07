@@ -1,0 +1,11 @@
+bin/
+obj/
+*.user
+.vs/
+artifacts/
+logs/
+dist/
+*.pyc
+
+__pycache__/
+*.py[cod]

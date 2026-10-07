@@ -1,0 +1,9 @@
+<Project>
+  <!-- Keep native and sensor dependencies away from VRCOSC's root-DLL module scan. -->
+  <Target Name="PrepareLhmBundle" AfterTargets="Build" BeforeTargets="DeployLocal">
+    <ItemGroup>
+      <LhmBundleFiles Include="$(TargetDir)LibreHardwareMonitorLib.dll;$(TargetDir)HidSharp.dll;$(TargetDir)DiskInfoToolkit.dll;$(TargetDir)RAMSPDToolkit-NDD.dll;$(TargetDir)BlackSharp.Core.dll;$(TargetDir)Mono.Posix.NETStandard.dll;$(TargetDir)MonoPosixHelper.dll;$(TargetDir)libMonoPosixHelper.dll;$(TargetDir)System.Management.dll;$(TargetDir)System.IO.Ports.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(LhmBundleFiles)" DestinationFolder="$(TargetDir)lhm" SkipUnchangedFiles="true" />
+  </Target>
+</Project>
