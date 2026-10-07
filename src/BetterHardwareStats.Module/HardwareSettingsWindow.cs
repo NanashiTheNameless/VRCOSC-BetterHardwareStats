@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using VRCOSC.App.SDK.Modules.Attributes.Settings;
 using VRCOSC.App.UI.Windows.Modules;
 using VRCOSC.App.UI.Core;
 
@@ -10,6 +11,7 @@ namespace BetterHardwareStats.Module;
 public sealed class HardwareSettingsWindow : Window, IManagedWindow
 {
     private ICollectionView? _groups;
+    private readonly List<ICollectionView> _settings = [];
     private readonly BetterHardwareStatsModule _hardware;
 
     public HardwareSettingsWindow(BetterHardwareStatsModule module)
@@ -39,6 +41,12 @@ public sealed class HardwareSettingsWindow : Window, IManagedWindow
         var list = Content is DependencyObject root ? FindGroups(root) : null;
         if (list?.ItemsSource is null) return;
         _groups = CollectionViewSource.GetDefaultView(list.ItemsSource);
+        foreach (var group in list.ItemsSource.Cast<object>().OfType<SettingsGroupFormatted>())
+        {
+            var settings = CollectionViewSource.GetDefaultView(group.Settings);
+            settings.Filter = item => item is not ModuleSetting setting || _hardware.IsSettingVisible(setting);
+            _settings.Add(settings);
+        }
         _groups.Filter = item => item is not SettingsGroupFormatted group || _hardware.IsGroupVisible(group.Title);
         _hardware.SettingsVisibilityChanged += RefreshVisibility;
         RefreshVisibility();
@@ -48,6 +56,7 @@ public sealed class HardwareSettingsWindow : Window, IManagedWindow
     {
         if (!Dispatcher.CheckAccess()) { Dispatcher.InvokeAsync(RefreshVisibility); return; }
         _groups?.Refresh();
+        foreach (var settings in _settings) settings.Refresh();
     }
 
     private static ItemsControl? FindGroups(DependencyObject parent)

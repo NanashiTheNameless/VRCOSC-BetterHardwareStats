@@ -54,6 +54,18 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
 
     internal event Action? SettingsVisibilityChanged;
 
+    internal bool IsSettingVisible(ModuleSetting setting)
+    {
+        bool Is(Setting lookup) => ReferenceEquals(setting, GetSetting(lookup));
+        if (Is(Setting.EnableNvml) || Is(Setting.PollInactiveGpus)) return _detected.Available.Contains(MetricSource.Nvml);
+        if (Is(Setting.EnableAdlx)) return _detected.Available.Contains(MetricSource.Adlx);
+        if (Is(Setting.EnableIgcl)) return _detected.Available.Contains(MetricSource.Igcl);
+        if (Is(Setting.EnableLibreHardwareMonitor)) return _detected.Available.Contains(MetricSource.LibreHardwareMonitor);
+        if (Is(Setting.HwInfoCpuTemperature) || Is(Setting.HwInfoCpuPower))
+            return GetSettingValue<CpuSensorMode>(Setting.CpuSensorMode) == CpuSensorMode.HwInfo;
+        return true;
+    }
+
     internal bool IsGroupVisible(string title) => title switch
     {
         "GPU" or "GPU data sources" => GetSettingValue<bool>(Setting.EnableGpu),

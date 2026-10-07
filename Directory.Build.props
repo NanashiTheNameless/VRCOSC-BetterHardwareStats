@@ -6,7 +6,7 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <!-- Module version. Release tags must match this value. -->
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <Authors>NamelessNanashi</Authors>
   </PropertyGroup>
 </Project>
