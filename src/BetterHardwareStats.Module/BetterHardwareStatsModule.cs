@@ -1,5 +1,10 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Serialization;
 using BetterHardwareStats.Core.Gpu;
 using BetterHardwareStats.Core.Model;
 using BetterHardwareStats.Core.Network;
@@ -32,6 +37,9 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
     private HardwareService? _service;
     private CancellationTokenSource? _diagnosticsCancellation;
     private Task? _diagnosticsTask;
+    private CancellationTokenSource? _telemetryCancellation;
+    private Task? _telemetryTask;
+    private bool _moduleRunning;
     private HardwareSnapshot? _restartSnapshot;
     private ParameterSender<HardwareParameter>? _sender;
     private ChatBoxEventTracker? _events;
@@ -244,6 +252,8 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
         CreateSlider(Setting.OverheatThresholdC, "Overheat threshold (C)", "Temperature that triggers the GPU and CPU overheat ChatBox events.", 85, 50, 120);
         CreateToggle(Setting.VerboseLogging, "Verbose logging", "Log every published snapshot (for troubleshooting).", false);
         CreateToggle(Setting.WriteDiagnosticsOnStart, "Save local diagnostics on start", "Saves local diagnostics to %APPDATA%\\VRCOSC\\betterhardwarestats\\diagnostics.txt when the module starts.", false);
+        CreateToggle(Setting.AnonymousUsageTelemetry, "Send anonymous usage telemetry",
+            "Enabled by default. It sends once when the module starts, then at each even UTC hour (00:00, 02:00, 04:00, etc.). Each request contains only this project name and the SHA-256 hash of a random ID saved in %LOCALAPPDATA%\\VRCOSC\\betterhardwarestats\\.telemetry-id. The service stores the hash temporarily (up to 10 days) to count this installation once per UTC day, and stores daily project totals for about one year. No hardware details, setting values, username, or app version are sent. The service and network provider can see your IP address when you connect. Turning this off stops sending and deletes the local ID; existing aggregate counts expire under the service's retention policy. See the README Telemetry section.", true);
 
         CreateChoiceDropdown(Setting.GpuSelection, "Selected GPU",
             "Choose a GPU. Auto follows VRChat. Missing choices temporarily use Auto.",
@@ -314,6 +324,7 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
         CreateGroup("Network", "", Setting.NetworkSelection, Setting.MaxNetworkMbps);
         CreateGroup("Output", "", Setting.SendMode, Setting.ChangeEpsilon, Setting.RefreshSeconds, Setting.OnMissingMetric, Setting.TemperatureUnit, Setting.MemoryUnit, Setting.OverheatThresholdC);
         CreateGroup("Diagnostics", "", Setting.VerboseLogging, Setting.WriteDiagnosticsOnStart);
+        CreateGroup("Telemetry", "", Setting.AnonymousUsageTelemetry);
     }
 
     private static readonly (Setting Lookup, GpuMetricGroup Group, string Title)[] GroupSettings =
@@ -336,6 +347,7 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
             if (lookup is Setting.DiskVolumes or Setting.NetworkSelectionMode or Setting.NetworkName) continue;
             GetSetting(lookup).OnSettingChange += ScheduleChoiceRefresh;
         }
+        GetSetting(Setting.AnonymousUsageTelemetry).OnSettingChange += RestartTelemetry;
         UpdateSettingsVisibility();
         ScheduleChoiceRefresh();
         var refs = new Dictionary<ChatBoxVariable, VRCOSC.App.ChatBox.Clips.Variables.ClipVariableReference>();
@@ -381,6 +393,9 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
             _service = null;
             return Task.FromResult(false);
         }
+
+        _moduleRunning = true;
+        StartTelemetry();
 
         ChangeState(ChatBoxState.Default);
 
@@ -499,8 +514,105 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
         _diagnosticsCancellation = null;
     }
 
+    private void RestartTelemetry(object? sender, EventArgs args)
+    {
+        StopTelemetry();
+        if (!GetSettingValue<bool>(Setting.AnonymousUsageTelemetry))
+        {
+            DeleteTelemetryId();
+            return;
+        }
+        if (_moduleRunning) StartTelemetry();
+    }
+
+    private void StartTelemetry()
+    {
+        if (!_moduleRunning || !GetSettingValue<bool>(Setting.AnonymousUsageTelemetry)) return;
+        _telemetryCancellation = new CancellationTokenSource();
+        var token = _telemetryCancellation.Token;
+        _telemetryTask = Task.Run(async () =>
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var id = GetOrCreateTelemetryId();
+                        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))).ToLowerInvariant();
+                        using var response = await client.PostAsJsonAsync("https://telemetry.namelessnanashi.dev/census",
+                            new TelemetryPayload(hash, "VRCOSC-BetterHardwareStats"), token);
+                        response.EnsureSuccessStatusCode();
+                    }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
+                    catch (Exception error) { LogDebug($"Anonymous telemetry send failed: {error.Message}"); }
+                    await Task.Delay(UntilNextUtcTelemetrySlot(), token);
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        }, token);
+    }
+
+    private static TimeSpan UntilNextUtcTelemetrySlot()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var nextEvenHour = (now.Hour / 2 + 1) * 2;
+        var next = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero)
+            .AddHours(nextEvenHour);
+        return next - now;
+    }
+
+    private void StopTelemetry()
+    {
+        _telemetryCancellation?.Cancel();
+        _telemetryCancellation?.Dispose();
+        _telemetryCancellation = null;
+        _telemetryTask = null;
+    }
+
+    private static string GetOrCreateTelemetryId()
+    {
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "VRCOSC", "betterhardwarestats");
+        var path = Path.Combine(directory, ".telemetry-id");
+        try
+        {
+            if (File.Exists(path))
+            {
+                var existing = File.ReadAllText(path).Trim();
+                if (Guid.TryParse(existing, out var parsed)) return parsed.ToString("N");
+            }
+            Directory.CreateDirectory(directory);
+            var id = Guid.NewGuid().ToString("N");
+            File.WriteAllText(path, id);
+            return id;
+        }
+        catch
+        {
+            return Guid.NewGuid().ToString("N");
+        }
+    }
+
+    private static void DeleteTelemetryId()
+    {
+        try
+        {
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VRCOSC", "betterhardwarestats", ".telemetry-id");
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch { }
+    }
+
+    private sealed record TelemetryPayload(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("projectname")] string ProjectName);
+
     protected override Task OnModuleStop()
     {
+        _moduleRunning = false;
+        StopTelemetry();
         var service = _service;
         _service = null;
         StopDiagnostics();
@@ -578,5 +690,6 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
         SelectedCPU, CpuSensorMode, MaxCpuTempC, MaxCpuPowerW, MaxCpuClockMhz,
         DiskVolumes, IncludeRemovableDrives, MaxDiskMBps, DiskSlot0, DiskSlot1, DiskSlot2, DiskSlot3,
         NetworkSelectionMode, NetworkName, MaxNetworkMbps, NetworkSelection, Support, HwInfoCpuTemperature, HwInfoCpuPower, EnableIgcl,
+        AnonymousUsageTelemetry,
     }
 }
