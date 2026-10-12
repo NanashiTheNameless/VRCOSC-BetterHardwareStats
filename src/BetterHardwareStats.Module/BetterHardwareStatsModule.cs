@@ -514,7 +514,7 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
         _diagnosticsCancellation = null;
     }
 
-    private void RestartTelemetry(object? sender, EventArgs args)
+    private void RestartTelemetry()
     {
         StopTelemetry();
         if (!GetSettingValue<bool>(Setting.AnonymousUsageTelemetry))
