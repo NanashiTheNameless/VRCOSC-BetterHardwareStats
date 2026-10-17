@@ -253,7 +253,7 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
         CreateToggle(Setting.VerboseLogging, "Verbose logging", "Log every published snapshot (for troubleshooting).", false);
         CreateToggle(Setting.WriteDiagnosticsOnStart, "Save local diagnostics on start", "Saves local diagnostics to %APPDATA%\\VRCOSC\\betterhardwarestats\\diagnostics.txt when the module starts.", false);
         CreateToggle(Setting.AnonymousUsageTelemetry, "Send anonymous usage telemetry",
-            "Enabled by default. It sends once when the module starts, then at each even UTC hour (00:00, 02:00, 04:00, etc.). Each request contains only this project name and the SHA-256 hash of a random ID saved in %LOCALAPPDATA%\\VRCOSC\\betterhardwarestats\\.telemetry-id. The service stores the hash temporarily (up to 10 days) to count this installation once per UTC day, and stores daily project totals for about one year. No hardware details, setting values, username, or app version are sent. The service and network provider can see your IP address when you connect. Turning this off stops sending and deletes the local ID; existing aggregate counts expire under the service's retention policy. See the README Telemetry section.", true);
+            "Enabled by default. It sends once when the module starts, then every two hours while running. Each request contains only this project name and the SHA-256 hash of a random ID saved in %LOCALAPPDATA%\\VRCOSC\\betterhardwarestats\\.telemetry-id. No hardware details, setting values, username, or app version are sent. The service and network provider can see your IP address when you connect. Turning this off stops sending and deletes the local ID. See the README Telemetry section.", true);
 
         CreateChoiceDropdown(Setting.GpuSelection, "Selected GPU",
             "Choose a GPU. Auto follows VRChat. Missing choices temporarily use Auto.",
@@ -547,20 +547,11 @@ public sealed class BetterHardwareStatsModule : VRCOSC.App.SDK.Modules.Module
                     }
                     catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
                     catch (Exception error) { LogDebug($"Anonymous telemetry send failed: {error.Message}"); }
-                    await Task.Delay(UntilNextUtcTelemetrySlot(), token);
+                    await Task.Delay(TimeSpan.FromHours(2), token);
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         }, token);
-    }
-
-    private static TimeSpan UntilNextUtcTelemetrySlot()
-    {
-        var now = DateTimeOffset.UtcNow;
-        var nextEvenHour = (now.Hour / 2 + 1) * 2;
-        var next = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero)
-            .AddHours(nextEvenHour);
-        return next - now;
     }
 
     private void StopTelemetry()

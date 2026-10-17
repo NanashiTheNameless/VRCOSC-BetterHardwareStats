@@ -34,11 +34,11 @@ When switching from Hardware Stats, update ChatBox module, state and variable re
 
 ## Telemetry
 
-Anonymous usage telemetry is enabled by default and can be disabled with **Send anonymous usage telemetry** in the Telemetry settings group at the bottom of the module settings. When enabled, the module sends a request at startup, then at each even UTC hour (00:00, 02:00, 04:00, etc.) while running to [NamelessTelemetry](https://github.com/NanashiTheNameless/NamelessTelemetry). The service deduplicates these pings and counts each installation once per UTC day.
+Anonymous usage telemetry is enabled by default and can be disabled with **Send anonymous usage telemetry** in the Telemetry settings group at the bottom of the module settings. When enabled, the module sends a request at startup, then every two hours while running to [NamelessTelemetry](https://github.com/NanashiTheNameless/NamelessTelemetry).
 
-The request contains only the project name (`VRCOSC-BetterHardwareStats`) and a SHA-256 hash of a random installation ID. The random ID is stored locally at `%LOCALAPPDATA%\VRCOSC\betterhardwarestats\.telemetry-id`; the un-hashed ID is never sent. The service uses the hash to count each installation once per UTC day. It stores the deduplication hash for up to 10 days and daily project totals for about one year. The service's dashboard shows aggregate counts.
+The request contains only the project name (`VRCOSC-BetterHardwareStats`) and a SHA-256 hash of a random installation ID. The random ID is stored locally at `%LOCALAPPDATA%\VRCOSC\betterhardwarestats\.telemetry-id`; the un-hashed ID is never sent.
 
-No hardware details, module settings, username, or app version are included. As with any network request, the telemetry service and network provider can see the connecting IP address. Telemetry is best effort: connection errors do not stop the module. Turning the setting off cancels the sender and deletes the local ID. Previously counted aggregate totals remain until the service's normal retention cleanup.
+No hardware details, module settings, username, or app version are included. As with any network request, the telemetry service and network provider can see the connecting IP address. Telemetry is best effort: connection errors do not stop the module. Turning the setting off cancels the sender and deletes the local ID.
 
 ## Build
 
